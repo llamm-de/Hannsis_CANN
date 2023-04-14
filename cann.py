@@ -58,11 +58,11 @@ class PsiNet(keras.layers.Layer):
         Forward pass of the network
         """
         # get invariants in reference config
-        invars_reference = invars -3
+        invars_reference = invars - 3
 
         # Raise invariants to powers
         invars_pow_2 = tf.math.pow(invars_reference, 2.0)
-        invar_powers = tf.concat([invars_reference, invars_pow_2], 0) # [I1, I2, I1^2, I2^2]
+        invar_powers = tf.concat([invars_reference, invars_pow_2], 0) # [I1-3, I2-3, (I1-3)^2, (I2-3)^2]
 
         # Multiply by weights
         powers_identity = tf.math.multiply(invar_powers, self.w_identity)
@@ -76,6 +76,7 @@ class PsiNet(keras.layers.Layer):
 
         # Multiply results with weights and add to strain energy using dot product (tf.tensordot)
         psi = tf.tensordot(tf.transpose(active_results), self.w_psi, axes=1)
+        
         return psi
 
 

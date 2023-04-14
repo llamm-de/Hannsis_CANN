@@ -5,7 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 TRAIN_MODEL = True
-TRAINING_EPOCHS = 50
+SAVE_MODEL = True
+TRAINING_EPOCHS = 3000
 
 def main() -> None:
     # Load dataset from steinmann paper (Treloar data)
@@ -35,7 +36,8 @@ def main() -> None:
         model_hist = model.fit(x, y, batch_size=1, epochs=TRAINING_EPOCHS, callbacks=[checkpoint_callback])
 
         # Save trained model
-        model.save('model/cann.tf')
+        if SAVE_MODEL:
+            model.save('model/cann.tf')
     else:
         # Load pretrained model
         model = keras.models.load_model('model/cann.tf')

@@ -34,19 +34,22 @@ class PsiNet(keras.layers.Layer):
                                  initializer = keras.initializers.GlorotNormal(), 
                                  constraint = tf.keras.constraints.NonNeg(), 
                                  regularizer = keras.regularizers.l2(l2_factor),
-                                 trainable = True)                         
+                                 trainable = True,
+                                 name='w_identity')                         
         # Weights for exponential transformation
         self.w_exp = self.add_weight(shape = (4,1), 
                                  initializer = keras.initializers.RandomUniform(minval=0.0, maxval=0.00001), 
                                  constraint = tf.keras.constraints.NonNeg(), 
                                  regularizer = keras.regularizers.l2(l2_factor),
-                                 trainable = True)
+                                 trainable = True,
+                                 name='w_exp')
         # Weights for summation to psi
         self.w_psi = self.add_weight(shape = (8,1), 
                                  initializer = keras.initializers.GlorotNormal(), 
                                  constraint = tf.keras.constraints.NonNeg(), 
                                  regularizer = keras.regularizers.l2(l2_factor),
-                                 trainable = True)  
+                                 trainable = True,
+                                 name='w_psi')  
         # Activation function for exponential activation
         self.activation_exp = keras.layers.Lambda(lambda x: activation_exp(x, b=-1.0))
 

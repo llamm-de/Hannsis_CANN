@@ -4,6 +4,8 @@ from tensorflow import keras
 import numpy as np
 import matplotlib.pyplot as plt
 
+TRAIN_MODEL = True
+TRAINING_EPOCHS = 50
 
 def main() -> None:
     # Load dataset from steinmann paper (Treloar data)
@@ -14,12 +16,29 @@ def main() -> None:
         y = np.float32(data[:,1])
 
 
-    # Create CANN model
-    model = CANN()
-    model.compile(optimizer=keras.optimizers.Adam(), loss=keras.losses.MeanSquaredError())
+    if TRAIN_MODEL:
+        # Create CANN model
+        model = CANN()
+        model.compile(optimizer=keras.optimizers.Adam(), 
+                      loss=keras.losses.MeanSquaredError(),
+                      metrics=[keras.metrics.MeanSquaredError()]
+                      )
+        
+        # Set checkpoint callback to save intermediate results (e.g. for visualization of training process)
+        checkpoint_callback = keras.callbacks.ModelCheckpoint(
+            filepath='checkpoints/weights-{epoch:02d}.hdf5', 
+            save_weights_only=True,
+            save_freq=250
+        )
+        
+        # Train the model
+        model_hist = model.fit(x, y, batch_size=1, epochs=TRAINING_EPOCHS, callbacks=[checkpoint_callback])
 
-    # Train the model
-    model_hist = model.fit(x, y, batch_size=1, epochs=2000)
+        # Save trained model
+        model.save('model/cann.tf')
+    else:
+        # Load pretrained model
+        model = keras.models.load_model('model/cann.tf')
 
     # Predict data with trained model
     x_test = np.linspace(x.min(), x.max(), 200)
@@ -27,7 +46,8 @@ def main() -> None:
 
     # Plot results
     fig, ax = plt.subplots(1,2,figsize=(10,6))
-    ax[0].plot(model_hist.history["loss"])
+    if TRAIN_MODEL:
+        ax[0].plot(model_hist.history["loss"])
     ax[0].grid()
     ax[0].set_title('Training Error')
     ax[0].set_xlabel("epoch")

@@ -115,3 +115,74 @@ class CANN(keras.Model):
         P1 = 2*(dPsi_dI1 + 1/stretch * dPsi_dI2)*(stretch - 1/tf.math.pow(stretch, 2.0))
 
         return P1
+    
+class PsiThetaBlock(keras.layers.Layer):
+    """
+    Block to calculate the sensitivities of sed wrt. temperature
+    """
+    def __init__(self, max_power:int = 2, l2_factor = 0.001) -> None:
+        super().__init__()
+        # Weights
+        self.w = self.add_weight(shape = (max_power,1), 
+                                 initializer = keras.initializers.GlorotNormal(), 
+                                 constraint = tf.keras.constraints.NonNeg(), 
+                                 regularizer = keras.regularizers.l2(l2_factor),
+                                 trainable = True,
+                                 name='w_identity') 
+        self.powers = tf.range(1, max_power+1, dtype='float32')
+    
+    def call(self, psi, theta, theta_0):
+        x = theta/theta_0
+        x = tf.math.pow(x, self.powers)
+        x = psi * x
+        return tf.tensordot(x, self.w, 1)        
+    
+class tempCANN(keras.Model):
+    """
+    The CANN model for thermoelasticity
+    """
+    def __init__(self, max_power:int = 2, l2_factor = 0.001, heat_expansion:float = 0.001, theta_0:float = 273.15) -> None:
+        super().__init__()
+        # Include the predefined layers for invariant and psi computation to model
+        self.invariant_layer = Invariants()
+        self.psi_layer = PsiNet()
+        self.psi_theta_layer = PsiThetaBlock(max_power, l2_factor)
+        self.heat_expansion = tf.constant(heat_expansion)
+        self.theta_0 = tf.constant(theta_0)
+
+    def call(self, inputs):
+        """
+        Forward pass of the model
+        """
+        
+        stretch = inputs[0]
+        theta = inputs[1]
+        
+        vartheta = tf.math.exp(self.heat_expansion*(theta - self.theta_0))
+
+        # Track invariants for later computaion of derivatives
+        with tf.GradientTape(persistent=True) as tape:
+            # Calculate invariants
+            I1, I2 = self.invariant_layer(stretch)
+            I1 = I1/vartheta
+            I2 = I2/tf.math.pow(vartheta, 2.0)
+            tape.watch(I1)
+            tape.watch(I2)
+            invars = tf.stack([I1, I2])
+        
+            # Calculate strain energy
+            psi = self.psi_layer(invars)
+
+            # Calculate temperature sensitivity of sed
+            psi = self.psi_theta_layer(psi, theta, self.theta_0)
+
+        # Get derivatives as matrix including dPsi_dI1 and dPsi_dI2
+        dPsi_dI1 = tape.gradient(psi, I1)
+        dPsi_dI2 = tape.gradient(psi, I2)
+
+        del tape
+
+        # Calculate stress response
+        P1 = 2*(dPsi_dI1 + 1/stretch * dPsi_dI2)*(stretch - 1/tf.math.pow(stretch, 2.0))
+
+        return P1
